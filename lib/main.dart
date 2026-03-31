@@ -25,7 +25,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Main Menu'),
+      home: const MyHomePage(title: 'Cross Puzzle'),
     );
   }
 }
@@ -48,7 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(        
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
-        
+        centerTitle: true,
       ),
       body: SafeArea(
   child: Center(
@@ -66,15 +66,15 @@ class _MyHomePageState extends State<MyHomePage> {
               children:[
               Image.asset(
               'images/crossword_logo-removebg-preview.png',
-              width: 100,
-              height: 100,
+              width: 150,
+              height: 150,
               ),
-              const SizedBox(height: 16),
               const Text(
                 'Cross Puzzle',
                 style: TextStyle(
                   fontSize: 32,
-                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Atma',
+                  fontWeight: FontWeight.bold
                 )
               ),
               const SizedBox(height:40),
@@ -103,8 +103,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
             FilledButton.tonal(
               onPressed: () {
-                print('Daily Puzzle button pressed');
+
               },
+               style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 47.5),
+                    ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const [
@@ -119,14 +122,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
             FilledButton.tonal(
               onPressed: () {
-                print('Profile button pressed');
+                
                 Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (context) => const ProfilePage(),
-  ),
-);
+              context,
+              MaterialPageRoute(
+              builder: (context) => const ProfilePage(),
+                  ),
+                );
               },
+              style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 47.5),
+                    ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const [
@@ -144,6 +150,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 
                 SystemNavigator.pop(); // Exits the app
               },
+              style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 47.5),
+                    ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const [
