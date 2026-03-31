@@ -38,6 +38,12 @@ class _GameScreenState extends State<GameScreen> {
   String get _progressKey    => 'progress_${level.id}';
   String get _clueResultsKey => 'clue_results_${level.id}';
 
+  Color get _themeColor {
+    if (level.id.startsWith('easy'))   return Colors.green;
+    if (level.id.startsWith('medium')) return const Color(0xFF1565C0);
+    return  Colors.red; // hard
+  }
+
   @override
   void initState() {
     super.initState();
@@ -299,14 +305,17 @@ class _GameScreenState extends State<GameScreen> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 200, 200, 200),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1565C0),
+        backgroundColor: _themeColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white, size: 26),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          level.id.replaceFirst('easy_', ''),
+          level.id
+            .replaceFirst('easy_', '')
+            .replaceFirst('medium_','')
+            .replaceFirst('hard_', ''),
           style: const TextStyle(
               color: Colors.white, fontWeight: FontWeight.w600, fontSize: 20),
         ),
@@ -393,7 +402,7 @@ class _GameScreenState extends State<GameScreen> {
                       child: Text(
                         '$clueNum',
                         style: const TextStyle(
-                            fontSize: 7,
+                            fontSize: 8,
                             fontWeight: FontWeight.bold,
                             color: Colors.black54),
                       ),
@@ -404,7 +413,7 @@ class _GameScreenState extends State<GameScreen> {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(221, 221, 77, 77),
+                        color: Color.fromARGB(221, 49, 49, 49),
                       ),
                     ),
                   ),
