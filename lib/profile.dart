@@ -10,8 +10,6 @@ const _allLevelIds = [
   'hard_1', 'hard_2', 'hard_3', 'hard_4',
 ];
 
-// Clue counts per level — must match the actual clue list lengths in each
-// level data file so the "completed" check works correctly.
 const _levelClueCounts = {
   'easy_1': 16, 'easy_2': 11, 'easy_3': 14, 'easy_4': 11,
   'medium_1': 16, 'medium_2': 16, 'medium_3': 15, 'medium_4': 17,
@@ -28,13 +26,14 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   bool isLoggedIn = false;
   String username = '';
+  String bio = '';
 
   // Stats
-  int _soloGamesPlayed = 0;      // levels where the player has typed anything
-  int _soloLevelsCompleted = 0;  // levels where every clue is marked correct
-  int _multiplayerCount = 0;     // placeholder — wire up when multiplayer ships
-  int _dailyPuzzleCount = 0;     // placeholder — wire up when daily puzzle ships
-  int _dailyStreak = 0;          // placeholder — wire up when daily puzzle ships
+  int _soloGamesPlayed = 0;      
+  int _soloLevelsCompleted = 0;  
+  int _multiplayerCount = 0;
+  int _dailyPuzzleCount = 0;     
+  int _dailyStreak = 0;          
 
   @override
   void initState() {
@@ -54,18 +53,15 @@ class _ProfilePageState extends State<ProfilePage> {
     int completed = 0;
 
     for (final id in _allLevelIds) {
-      // A level is "played" if an entries string exists for it
       final entries = prefs.getString('entries_$id') ?? '';
       if (entries.isNotEmpty) played++;
 
-      // A level is "completed" if the number of correct clues equals the
-      // total clue count for that level
       final correctCount = prefs.getInt('progress_$id') ?? 0;
       final totalClues   = _levelClueCounts[id] ?? 0;
       if (totalClues > 0 && correctCount >= totalClues) completed++;
     }
 
-    // ── Multiplayer / Daily (placeholders) ────────────────────────
+
     final multi  = prefs.getInt('stat_multiplayer_count') ?? 0;
     final daily  = prefs.getInt('stat_daily_count')       ?? 0;
     final streak = prefs.getInt('stat_daily_streak')      ?? 0;
@@ -132,7 +128,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
                       const SizedBox(height: 20),
 
-                      // BIO card
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
