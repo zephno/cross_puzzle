@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "849798385006",
+    "project_id": "cross-puzzle-d3c56",
+    "storage_bucket": "cross-puzzle-d3c56.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:849798385006:android:0ea222f040a8790250457f",
+        "android_client_info": {
+          "package_name": "com.example.testing"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAuJ5T5VL16C_fiQ9IAP4onbeqnQllPUQ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
