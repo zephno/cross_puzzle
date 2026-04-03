@@ -26,8 +26,9 @@ flutter:
 
   uses-material-design: true
 
-assets:
+  assets:
     - images/crossword_logo-removebg-preview.png
+    
   fonts:
     - family: Atma
       fonts: 
