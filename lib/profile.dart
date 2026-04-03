@@ -26,14 +26,16 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   bool isLoggedIn = false;
   String username = '';
-  String bio = '';
+
+  // Bio
+  bool _isEditingBio = false;
+  final TextEditingController _bioController = TextEditingController();
 
   // Stats
-  int _soloGamesPlayed = 0;      
-  int _soloLevelsCompleted = 0;  
+  int _soloGamesPlayed = 0;
+  int _soloLevelsCompleted = 0;
   int _multiplayerCount = 0;
-  int _dailyPuzzleCount = 0;     
-  int _dailyStreak = 0;          
+  int _dailyStreak = 0;
 
   @override
   void initState() {
@@ -41,15 +43,25 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadAll();
   }
 
+  @override
+  void dispose() {
+    _bioController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadAll() async {
     final prefs = await SharedPreferences.getInstance();
 
     // ── Login status ──────────────────────────────────────────────
     final loggedIn = prefs.getBool('isLoggedIn') ?? false;
-    final name     = prefs.getString('username') ?? '';
+    final name = prefs.getString('username') ?? '';
+
+    // ── Bio ───────────────────────────────────────────────────────
+    final savedBio = prefs.getString('bio') ??
+        '"A puzzle is not a test of what you already know, but an invitation to see how different parts find their purpose in the whole."';
 
     // ── Solo stats ────────────────────────────────────────────────
-    int played    = 0;
+    int played = 0;
     int completed = 0;
 
     for (final id in _allLevelIds) {
@@ -57,24 +69,29 @@ class _ProfilePageState extends State<ProfilePage> {
       if (entries.isNotEmpty) played++;
 
       final correctCount = prefs.getInt('progress_$id') ?? 0;
-      final totalClues   = _levelClueCounts[id] ?? 0;
+      final totalClues = _levelClueCounts[id] ?? 0;
       if (totalClues > 0 && correctCount >= totalClues) completed++;
     }
 
-
-    final multi  = prefs.getInt('stat_multiplayer_count') ?? 0;
-    final daily  = prefs.getInt('stat_daily_count')       ?? 0;
-    final streak = prefs.getInt('stat_daily_streak')      ?? 0;
+    // ── Daily / multiplayer stats ─────────────────────────────────
+    final multi = prefs.getInt('stat_multiplayer_count') ?? 0;
+    final streak = prefs.getInt('daily_streak') ?? 0;
 
     setState(() {
-      isLoggedIn           = loggedIn;
-      username             = name;
-      _soloGamesPlayed     = played;
+      isLoggedIn = loggedIn;
+      username = name;
+      _bioController.text = savedBio;
+      _soloGamesPlayed = played;
       _soloLevelsCompleted = completed;
-      _multiplayerCount    = multi;
-      _dailyPuzzleCount    = daily;
-      _dailyStreak         = streak;
+      _multiplayerCount = multi;
+      _dailyStreak = streak;
     });
+  }
+
+  Future<void> _saveBio(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('bio', value);
+    setState(() => _isEditingBio = false);
   }
 
   Future<void> _logout() async {
@@ -82,7 +99,7 @@ class _ProfilePageState extends State<ProfilePage> {
     await prefs.setBool('isLoggedIn', false);
     setState(() {
       isLoggedIn = false;
-      username   = '';
+      username = '';
     });
   }
 
@@ -105,6 +122,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
                     children: [
+                      // ── Welcome ─────────────────────────────────
                       Text(
                         'Welcome, $username!',
                         style: const TextStyle(
@@ -112,12 +130,14 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const SizedBox(height: 20),
 
+                      // ── Avatar ──────────────────────────────────
                       const CircleAvatar(
                         radius: 40,
                         child: Icon(Icons.person, size: 40),
                       ),
                       const SizedBox(height: 12),
 
+                      // ── Logout ──────────────────────────────────
                       FilledButton(
                         onPressed: _logout,
                         style: FilledButton.styleFrom(
@@ -125,9 +145,9 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         child: const Text('Logout'),
                       ),
-
                       const SizedBox(height: 20),
 
+                      // ── Bio card ────────────────────────────────
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
@@ -137,25 +157,68 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              'BIO',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'BIO',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () {
+                                    if (_isEditingBio) {
+                                      _saveBio(_bioController.text);
+                                    } else {
+                                      setState(() => _isEditingBio = true);
+                                    }
+                                  },
+                                  child: Text(
+                                    _isEditingBio ? 'Save' : 'Edit',
+                                    style: const TextStyle(
+                                      color: Colors.deepPurple,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            SizedBox(height: 8),
-                            Text(
-                              '"A puzzle is not a test of what you already know, but an invitation to see how different parts find their purpose in the whole."',
-                              style: TextStyle(fontSize: 14),
-                            ),
+                            const SizedBox(height: 8),
+                            _isEditingBio
+                                ? TextField(
+                                    controller: _bioController,
+                                    maxLines: null,
+                                    autofocus: true,
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                      hintText:
+                                          'Write something about yourself...',
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                    style: const TextStyle(fontSize: 14),
+                                  )
+                                : Text(
+                                    _bioController.text.isNotEmpty
+                                        ? _bioController.text
+                                        : 'Write something about yourself...',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: _bioController.text.isNotEmpty
+                                          ? Colors.black
+                                          : Colors.grey,
+                                    ),
+                                  ),
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 20),
 
+                      // ── Stats grid ──────────────────────────────
                       GridView.count(
                         shrinkWrap: true,
                         crossAxisCount: 2,
@@ -164,10 +227,10 @@ class _ProfilePageState extends State<ProfilePage> {
                         childAspectRatio: 1.8,
                         physics: const NeverScrollableScrollPhysics(),
                         children: [
-                          _buildStatCard('Daily Puzzle Streak',    '$_dailyStreak'),
+                          _buildStatCard('Daily Puzzle Streak', '$_dailyStreak'),
                           _buildStatCard('Multiplayer Game Count', '$_multiplayerCount'),
-                          _buildStatCard('Solo Levels Played',     '$_soloGamesPlayed'),
-                          _buildStatCard('Solo Levels Completed',  '$_soloLevelsCompleted'),
+                          _buildStatCard('Solo Levels Played', '$_soloGamesPlayed'),
+                          _buildStatCard('Solo Levels Completed', '$_soloLevelsCompleted'),
                         ],
                       ),
                     ],
