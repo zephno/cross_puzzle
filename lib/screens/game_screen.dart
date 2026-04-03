@@ -4,8 +4,15 @@ import '../models/level_data.dart';
 
 class GameScreen extends StatefulWidget {
   final LevelData level;
+  final bool isDailyMode;
+  final VoidCallback? onDailyCompleted;
 
-  const GameScreen({super.key, required this.level});
+  const GameScreen({
+    super.key,
+    required this.level,
+    this.isDailyMode = false,
+    this.onDailyCompleted,
+  });
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -29,19 +36,34 @@ class _GameScreenState extends State<GameScreen> {
 
   bool _hasChecked = false;
 
+  // Cached prefs instance — obtained once in _loadState
   SharedPreferences? _prefs;
 
   LevelData get level => widget.level;
 
   // ── SharedPreferences keys ─────────────────────────────────────
-  String get _entriesKey     => 'entries_${level.id}';
-  String get _progressKey    => 'progress_${level.id}';
-  String get _clueResultsKey => 'clue_results_${level.id}';
+  // In daily mode, keys are date-scoped so they don't clash with
+  // normal level progress and reset automatically the next day.
+  String get _entriesKey =>
+      widget.isDailyMode ? 'entries_daily_${_todayKey()}' : 'entries_${level.id}';
+  String get _progressKey =>
+      widget.isDailyMode ? 'progress_daily_${_todayKey()}' : 'progress_${level.id}';
+  String get _clueResultsKey =>
+      widget.isDailyMode ? 'clue_results_daily_${_todayKey()}' : 'clue_results_${level.id}';
 
+  String _todayKey() {
+    final now = DateTime.now();
+    return '${now.year}'
+        '${now.month.toString().padLeft(2, '0')}'
+        '${now.day.toString().padLeft(2, '0')}';
+  }
+
+  // ── Derive theme color from difficulty / mode ─────────────────
   Color get _themeColor {
-    if (level.id.startsWith('easy'))   return Colors.green;
+    if (widget.isDailyMode) return const Color(0xFF6A1B9A); // purple for daily
+    if (level.id.startsWith('easy')) return Colors.green;
     if (level.id.startsWith('medium')) return const Color(0xFF1565C0);
-    return  Colors.red; // hard
+    return Colors.red; // hard
   }
 
   @override
@@ -53,7 +75,7 @@ class _GameScreenState extends State<GameScreen> {
   // ── Persistence: load entries + clue results together ──────────
 
   Future<void> _loadState() async {
-    // FIX: obtain and cache the prefs instance once here
+    // Obtain and cache the prefs instance once
     _prefs = await SharedPreferences.getInstance();
 
     // Load entries
@@ -63,10 +85,10 @@ class _GameScreenState extends State<GameScreen> {
       for (final part in savedEntries.split(';')) {
         final eq = part.indexOf('=');
         if (eq == -1) continue;
-        final key   = part.substring(0, eq);
+        final key = part.substring(0, eq);
         final value = part.substring(eq + 1);
-        // FIX: store ALL entries, including empty ones, so the map reflects
-        // the full saved state (empty strings are intentional backspace results)
+        // Store ALL entries including empty strings — empty means the user
+        // backspaced that cell and it should stay blank after a restart.
         loadedEntries[key] = value;
       }
     }
@@ -79,7 +101,7 @@ class _GameScreenState extends State<GameScreen> {
         final colon = part.indexOf(':');
         if (colon == -1) continue;
         final clueId = part.substring(0, colon);
-        final value  = part.substring(colon + 1);
+        final value = part.substring(colon + 1);
         loadedResults[clueId] = value == 't';
       }
     }
@@ -95,27 +117,20 @@ class _GameScreenState extends State<GameScreen> {
   // ── Persistence: save entries ──────────────────────────────────
 
   Future<void> _saveEntries() async {
-    // FIX: fall back to getInstance() only if cache missed (e.g. very first
-    // save before _loadState completed, which shouldn't happen in practice)
     final prefs = _prefs ?? await SharedPreferences.getInstance();
 
-    // FIX: save ALL non-null entries, including empty strings.
-    // An empty string means "user backspaced this cell" and must round-trip
-    // correctly so the cell stays blank after a restart.
-    // We only skip keys whose value is genuinely absent from the map.
-    final nonNullEntries = _entries.entries.toList();
+    // Save ALL entries including empty strings so backspaced cells
+    // round-trip correctly after a restart.
+    final allEntries = _entries.entries.toList();
 
-    if (nonNullEntries.isEmpty) {
+    if (allEntries.isEmpty) {
       await prefs.remove(_entriesKey);
       return;
     }
 
     // Encode as "row,col=LETTER" pairs joined by ";".
-    // Empty-value entries are encoded as "row,col=" which decodes correctly.
-    final encoded = nonNullEntries
-        .map((e) => '${e.key}=${e.value}')
-        .join(';');
-
+    // Empty-value entries encode as "row,col=" which decodes correctly.
+    final encoded = allEntries.map((e) => '${e.key}=${e.value}').join(';');
     await prefs.setString(_entriesKey, encoded);
   }
 
@@ -205,6 +220,7 @@ class _GameScreenState extends State<GameScreen> {
       _clueResults.remove(clue.id);
     });
 
+    // Auto-mark all clues green if puzzle is complete after this keystroke
     if (_isPuzzleComplete) {
       setState(() {
         for (final c in level.clues) {
@@ -213,9 +229,6 @@ class _GameScreenState extends State<GameScreen> {
       });
     }
 
-    // FIX: use _saveAll() so a single await chain covers entries + results +
-    // progress, avoiding the previous pattern of three fire-and-forget calls
-    // that could interleave on fast typing.
     _saveAll();
   }
 
@@ -245,6 +258,7 @@ class _GameScreenState extends State<GameScreen> {
       _hasChecked = true;
     });
 
+    // Auto-mark all clues green if puzzle is complete after this check
     if (_isPuzzleComplete) {
       setState(() {
         for (final c in level.clues) {
@@ -312,10 +326,12 @@ class _GameScreenState extends State<GameScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          level.id
-            .replaceFirst('easy_', '')
-            .replaceFirst('medium_','')
-            .replaceFirst('hard_', ''),
+          widget.isDailyMode
+              ? 'Daily Puzzle'
+              : level.id
+                  .replaceFirst('easy_', '')
+                  .replaceFirst('medium_', '')
+                  .replaceFirst('hard_', ''),
           style: const TextStyle(
               color: Colors.white, fontWeight: FontWeight.w600, fontSize: 20),
         ),
@@ -451,10 +467,12 @@ class _GameScreenState extends State<GameScreen> {
               children: [
                 if (label.isNotEmpty)
                   Text(label,
-                      style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 11)),
                 Text(hint,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white, fontSize: 15)),
+                    style:
+                        const TextStyle(color: Colors.white, fontSize: 15)),
               ],
             ),
           ),
@@ -470,7 +488,10 @@ class _GameScreenState extends State<GameScreen> {
   void _nextClue() {
     final all = level.clues;
     if (all.isEmpty) return;
-    if (_selectedClue == null) { _selectClue(all.first); return; }
+    if (_selectedClue == null) {
+      _selectClue(all.first);
+      return;
+    }
     final idx = all.indexOf(_selectedClue!);
     _selectClue(all[(idx + 1) % all.length]);
   }
@@ -478,16 +499,19 @@ class _GameScreenState extends State<GameScreen> {
   void _previousClue() {
     final all = level.clues;
     if (all.isEmpty) return;
-    if (_selectedClue == null) { _selectClue(all.last); return; }
+    if (_selectedClue == null) {
+      _selectClue(all.last);
+      return;
+    }
     final idx = all.indexOf(_selectedClue!);
     _selectClue(all[(idx - 1 + all.length) % all.length]);
   }
 
   Widget _buildKeyboard() {
     const rows = [
-      ['Q','W','E','R','T','Y','U','I','O','P'],
-      ['A','S','D','F','G','H','J','K','L'],
-      ['Z','X','C','V','B','N','M','⌫'],
+      ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+      ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+      ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '⌫'],
     ];
 
     return Container(
@@ -572,7 +596,7 @@ class _GameScreenState extends State<GameScreen> {
                 elevation: 0,
               ),
               child: Text(
-                _isPuzzleComplete ? 'Next' : 'Check',
+                _isPuzzleComplete ? 'Finish' : 'Check',
                 style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -585,7 +609,13 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  // ── Completion dialog ──────────────────────────────────────────
+  // In daily mode: calls onDailyCompleted() which hands off to
+  // DailyPuzzleScreen for streak saving + countdown dialog.
+  // In normal mode: pops back to the level select screen.
+
   void _showCompleteDialog() {
+    // Mark all clues green on completion and persist
     setState(() {
       for (final c in level.clues) {
         _clueResults[c.id] = true;
@@ -602,9 +632,13 @@ class _GameScreenState extends State<GameScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context); // close dialog
-              Navigator.pop(context); // back to levels
+              if (widget.isDailyMode && widget.onDailyCompleted != null) {
+                widget.onDailyCompleted!(); // hand off to DailyPuzzleScreen
+              } else {
+                Navigator.pop(context); // normal: back to levels
+              }
             },
-            child: const Text('Back to Levels'),
+            child: Text(widget.isDailyMode ? 'Finish' : 'Back to Levels'),
           ),
         ],
       ),
