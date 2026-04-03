@@ -28,4 +28,8 @@ flutter:
 
 assets:
     - images/crossword_logo-removebg-preview.png
+  fonts:
+    - family: Atma
+      fonts: 
+        - asset: fonts/Atma-Regular.ttf
  
