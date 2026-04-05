@@ -23,7 +23,7 @@ final Map<String, LevelData> _allLevels = {
   'medium_1': mediumLevel1, 'medium_2': mediumLevel2,
   'medium_3': mediumLevel3, 'medium_4': mediumLevel4,
   'hard_1': hardLevel1, 'hard_2': hardLevel2,
-  'hard_3': hardLevel3, 'hard_4': hardLevel4,
+  'hard_3': hardLevel3, 'hard_4': hardlevel4,
 };
 
 class MultiplayerGameScreen extends StatefulWidget {
