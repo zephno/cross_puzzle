@@ -602,7 +602,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(221, 221, 77, 77),
+                        color: Color.fromARGB(221, 49, 49, 49),
                       ),
                     ),
                   ),
