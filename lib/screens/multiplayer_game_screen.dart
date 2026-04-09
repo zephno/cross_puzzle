@@ -450,7 +450,6 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
       );
     }
 
-    // FIX: use _myCorrectCount() so the bar updates on every keystroke
     final myProgress = _level!.clues.isEmpty
         ? 0.0
         : _myCorrectCount() / _level!.clues.length;
@@ -753,13 +752,14 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
     );
   }
 
+  // ── Quit dialog ────────────────────────────────────────────────
   void _showQuitDialog() {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Quit Match?'),
         content: const Text(
-            'Are you sure you want to leave? Your opponent will win by default.'),
+            'Are you sure you want to leave? Your opponent will win the match.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -767,7 +767,12 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
           ),
           TextButton(
             onPressed: () async {
-              await MatchmakingService.finishMatch(widget.roomId);
+              Navigator.pop(context);
+              await MatchmakingService.quitMatch(
+                roomId: widget.roomId,
+                opponentUsername: widget.opponentUsername,
+                currentRound: _currentRound,
+              );
               if (mounted) {
                 Navigator.of(context).popUntil((r) => r.isFirst);
               }
