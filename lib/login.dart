@@ -72,9 +72,9 @@ class _LoginPageState extends State<LoginPage> {
             // 🔹 Header Section
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 50, 20, 30),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
               decoration: const BoxDecoration(
-                color: Colors.deepPurple,
+                color: Color.fromARGB(255, 56, 132, 138),
               ),
               child: const Text(
                 'Login',
