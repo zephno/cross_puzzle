@@ -108,7 +108,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: Color.fromARGB(255, 56, 132, 138),
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -133,6 +133,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       // ── Avatar ──────────────────────────────────
                       const CircleAvatar(
                         radius: 40,
+                        backgroundColor: Color.fromARGB(255, 205, 204, 204),
                         child: Icon(Icons.person, size: 40),
                       ),
                       const SizedBox(height: 12),
@@ -141,7 +142,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       FilledButton(
                         onPressed: _logout,
                         style: FilledButton.styleFrom(
-                          backgroundColor: Colors.deepPurple.shade600,
+                          backgroundColor: Color.fromARGB(255, 56, 132, 138),
                         ),
                         child: const Text('Logout'),
                       ),
@@ -179,7 +180,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                   child: Text(
                                     _isEditingBio ? 'Save' : 'Edit',
                                     style: const TextStyle(
-                                      color: Colors.deepPurple,
+                                      color: Color.fromARGB(255, 56, 132, 138),
                                       fontWeight: FontWeight.w600,
                                       fontSize: 13,
                                     ),
@@ -299,7 +300,7 @@ class _ProfilePageState extends State<ProfilePage> {
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 22,
-                color: Colors.deepPurple,
+                color: Color.fromARGB(255, 56, 132, 138),
               ),
             ),
           ),
