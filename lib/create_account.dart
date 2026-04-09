@@ -55,7 +55,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-              color: Colors.deepPurple,
+              color: Color.fromARGB(255, 56, 132, 138),
               child: const Text(
                 'Create Account',
                 style: TextStyle(
