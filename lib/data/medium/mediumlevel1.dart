@@ -1,5 +1,6 @@
 import 'package:crosspuzzle/models/level_data.dart';
 
+
 const LevelData mediumLevel1 = LevelData(
   id: 'medium_1',
   difficulty: 'Medium',
