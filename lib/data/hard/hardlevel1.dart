@@ -48,7 +48,7 @@ const LevelData hardLevel1 = LevelData(
       number: 11, direction: 'A',
       start: CellPosition(4, 0),
       answer: 'START',
-      hint: 'Go ahead, begin',
+      hint: 'Begin',
     ),
     Clue(
       number: 12, direction: 'A',
@@ -56,6 +56,7 @@ const LevelData hardLevel1 = LevelData(
       answer: 'EFFICIENT',
       hint: 'Effective in doing what is required',
     ),
+        
     Clue(
       number: 15, direction: 'A',
       start: CellPosition(7, 0),
@@ -173,7 +174,7 @@ const LevelData hardLevel1 = LevelData(
     ),
     Clue(
       number: 21, direction: 'D',
-      start: CellPosition(8, 6),
+      start: CellPosition(9, 6),
       answer: 'MEAN',
       hint: 'Not very nice',
     ),
