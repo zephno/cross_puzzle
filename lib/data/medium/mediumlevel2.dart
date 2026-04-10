@@ -10,7 +10,7 @@ const LevelData mediumLevel2 = LevelData(
     [1,1,1,1,0,0,0,1,1,1,1],
     [0,0,0,1,0,0,0,0,0,0,1],
     [1,1,1,1,0,0,0,1,1,1,1],
-    [1,0,0,0,0,0,0,0,0,1,0],
+    [1,0,0,0,0,0,0,0,0,0,0],
     [1,1,1,0,0,0,0,1,1,1,1],
     [1,0,1,0,1,1,1,1,0,0,1],
     [0,1,1,1,1,0,0,1,1,1,1],
@@ -159,13 +159,7 @@ const LevelData mediumLevel2 = LevelData(
       hint: 'Butter substitute',
     ),
 
-    Clue(
-      number: 11,
-      direction: 'D',
-      start: CellPosition(5,8),
-      answer: 'LIRA',
-      hint: 'Mineral source',
-    ),
+    
 
     Clue(
       number: 13,
