@@ -70,7 +70,7 @@ const LevelData hardLevel4 = LevelData(
     ),
     Clue(
       number: 15, direction: 'A',
-      start: CellPosition(0, 0),
+      start: CellPosition(6, 0),
       answer: 'HERS',
       hint: 'Feminine posseisve pronoun used to indicate ownership of something',
     ),
@@ -125,7 +125,7 @@ const LevelData hardLevel4 = LevelData(
     Clue(
       number: 27, direction: 'A',
       start: CellPosition(12, 7),
-      answer: 'Tunnel',
+      answer: 'TUNNEL',
       hint: 'Underground passage',
     ),
     
@@ -205,5 +205,11 @@ const LevelData hardLevel4 = LevelData(
       answer: 'THAT',
       hint: 'Word used to point out people or things that are distant',
     ),
+
+    
+
+
+    
+
   ],
 );
