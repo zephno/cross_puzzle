@@ -5,7 +5,7 @@ const LevelData hardLevel3 = LevelData(
   difficulty: 'hard',
   grid: [
     [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1], // r0
-    [1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1], // r1
+    [1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1], // r1
     [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1], // r2
     [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1], // r3
     [1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1], // r4
@@ -128,6 +128,12 @@ const LevelData hardLevel3 = LevelData(
       start: CellPosition(0, 12),
       answer: 'HEADSET',
       hint: 'Output device for listening to audio',
+    ),
+    Clue(
+      number: 9, direction: 'D',
+      start: CellPosition(2, 4),
+      answer: 'VOYAGE',
+      hint: 'A long, often adventurous journey, typically taken by sea or in space',
     ),
     Clue(
       number: 13, direction: 'D',
