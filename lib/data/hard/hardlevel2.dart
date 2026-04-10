@@ -51,13 +51,13 @@ const LevelData hardLevel2 = LevelData(
       hint: 'Chance, fortune',
     ),
     Clue(
-      number: 10, direction: 'A',
+      number: 11, direction: 'A',
       start: CellPosition(5, 0),
       answer: 'TORSO',
       hint: 'Body trunk',
     ),
     Clue(
-      number: 10, direction: 'A',
+      number: 13, direction: 'A',
       start: CellPosition(5, 6),
       answer: 'ECLIPSE',
       hint: 'One celestial body obscures another',
@@ -178,5 +178,9 @@ const LevelData hardLevel2 = LevelData(
       answer: 'ALARM',
       hint: 'Clock that wakes a sleeper at a preset time',
     ),
+
+
+    
+    
   ],
 );
