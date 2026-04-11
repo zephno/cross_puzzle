@@ -56,6 +56,11 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
   int _opponentCorrect = 0;
   int _opponentTotal = 1;
 
+  // Cache the latest room state so the winner can navigate immediately
+  // without waiting for a Firestore round-trip.
+  List<String> _lastKnownWinners = ['', '', ''];
+  String _lastKnownStatus = 'playing';
+
   StreamSubscription? _roomSub;
   StreamSubscription? _opponentSub;
 
@@ -83,16 +88,38 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
       final winners = List<String>.from(data['roundWinners'] ?? ['', '', '']);
       final status = data['status'] as String? ?? 'playing';
 
-      // If round changed externally, load new puzzle
+      // Always keep a local copy of the latest winners/status.
+      _lastKnownWinners = winners;
+      _lastKnownStatus = status;
+
+      // If round changed externally, load new puzzle.
       if (round != _currentRound || _level == null) {
         _loadRound(round, levels);
       }
 
-      // Check if this round just got a winner
-      if (round <= 3 && winners[round - 1].isNotEmpty && !_roundEnded) {
-        setState(() {
-          _roundEnded = true;
-        });
+      // ── Quit detection ─────────────────────────────────────────
+      // When the opponent quits, quitMatch() fills every remaining round slot
+      // with the staying player's username and sets status='finished' in one
+      // write. The staying player is the "winner" of those rounds, so the
+      // normal loser-check below would skip them. Detect this separately.
+      if (status == 'finished' && !_roundEnded) {
+        final allFilled = winners.every((w) => w.isNotEmpty);
+        final currentRoundWonByMe = winners[round - 1] == widget.username;
+        if (allFilled && currentRoundWonByMe) {
+          setState(() => _roundEnded = true);
+          _navigateToRoundResult(winners, round, status);
+          return;
+        }
+      }
+
+      // The LOSER navigates via the stream listener.
+      // The WINNER navigates directly from _onPuzzleComplete so they don't
+      // get skipped by the _roundEnded guard below.
+      if (round <= 3 &&
+          winners[round - 1].isNotEmpty &&
+          !_roundEnded &&
+          winners[round - 1] != widget.username) {
+        setState(() => _roundEnded = true);
         _navigateToRoundResult(winners, round, status);
       }
 
@@ -197,11 +224,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
       await MatchmakingService.incrementMultiplayerCount();
       if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
     } else {
-      if (mounted) {
-        setState(() {
-          _roundEnded = false;
-        });
-      }
+      if (mounted) setState(() => _roundEnded = false);
     }
   }
 
@@ -217,7 +240,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
   String _cellKey(Clue clue, int index) => _cellKeyFromClue(clue, index);
   String _entryAt(int row, int col) => _entries['$row,$col'] ?? '';
 
-  // ── My live correct clue count (no Check press needed) ────────
+  // ── My live correct clue count ─────────────────────────────────
   int _myCorrectCount() {
     if (_level == null) return 0;
     int correct = 0;
@@ -225,8 +248,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
       bool clueCorrect = true;
       bool hasAnyLetter = false;
       for (int i = 0; i < clue.length; i++) {
-        final entered =
-            (_entries[_cellKey(clue, i)] ?? '').toUpperCase();
+        final entered = (_entries[_cellKey(clue, i)] ?? '').toUpperCase();
         if (entered.isNotEmpty) hasAnyLetter = true;
         if (entered != clue.answer[i]) {
           clueCorrect = false;
@@ -297,20 +319,27 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
     }
   }
 
-  // ── Check selected clue ────────────────────────────────────────
+  // ── Check entire puzzle ────────────────────────────────────────
   void _checkAnswer() {
-    if (_selectedClue == null || _level == null) return;
-    final clue = _selectedClue!;
-    bool correct = true;
-    for (int i = 0; i < clue.length; i++) {
-      final entered = (_entries[_cellKey(clue, i)] ?? '').toUpperCase();
-      if (entered != clue.answer[i]) {
-        correct = false;
-        break;
-      }
-    }
+    if (_level == null) return;
     setState(() {
-      _clueResults[clue.id] = correct;
+      for (final clue in _level!.clues) {
+        // Only evaluate clues where every cell has been filled in.
+        bool allFilled = true;
+        bool correct = true;
+        for (int i = 0; i < clue.length; i++) {
+          final entered = (_entries[_cellKey(clue, i)] ?? '').toUpperCase();
+          if (entered.isEmpty) {
+            allFilled = false;
+            break;
+          }
+          if (entered != clue.answer[i]) correct = false;
+        }
+        if (allFilled) {
+          _clueResults[clue.id] = correct;
+        }
+        // Clues with unfilled cells keep whatever result they had (or none).
+      }
     });
 
     if (_isPuzzleComplete && !_roundEnded) {
@@ -352,12 +381,22 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
       _clueResults[c.id] = true;
     }
 
+    // Build the updated winners list locally so we can navigate immediately,
+    // without waiting for Firestore to propagate back to our stream listener.
+    final updatedWinners = List<String>.from(_lastKnownWinners);
+    if (updatedWinners[_currentRound - 1].isEmpty) {
+      updatedWinners[_currentRound - 1] = widget.username;
+    }
+
+    final isLastRound = _currentRound == 3;
+    final resolvedStatus = isLastRound ? 'finished' : _lastKnownStatus;
+
     MatchmakingService.markRoundComplete(
       roomId: widget.roomId,
       username: widget.username,
       round: _currentRound,
     ).then((_) {
-      if (_currentRound == 3) {
+      if (isLastRound) {
         MatchmakingService.finishMatch(widget.roomId);
       } else {
         Future.delayed(const Duration(seconds: 2), () {
@@ -366,6 +405,11 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
             nextRound: _currentRound + 1,
           );
         });
+      }
+
+      // Winner navigates directly — the loser navigates via the room stream.
+      if (mounted) {
+        _navigateToRoundResult(updatedWinners, _currentRound, resolvedStatus);
       }
     });
   }
@@ -400,10 +444,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
     if (level == null) return;
     final all = level.clues;
     if (all.isEmpty) return;
-    if (_selectedClue == null) {
-      _selectClue(all.first);
-      return;
-    }
+    if (_selectedClue == null) { _selectClue(all.first); return; }
     final idx = all.indexOf(_selectedClue!);
     _selectClue(all[(idx + 1) % all.length]);
   }
@@ -413,10 +454,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
     if (level == null) return;
     final all = level.clues;
     if (all.isEmpty) return;
-    if (_selectedClue == null) {
-      _selectClue(all.last);
-      return;
-    }
+    if (_selectedClue == null) { _selectClue(all.last); return; }
     final idx = all.indexOf(_selectedClue!);
     _selectClue(all[(idx - 1 + all.length) % all.length]);
   }
@@ -430,7 +468,6 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
   }
 
   // ── Build ──────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     if (_level == null) {
@@ -463,7 +500,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => _showQuitDialog(),
+          onPressed: _showQuitDialog,
         ),
         title: Text(
           'Round $_currentRound of 3',
@@ -501,17 +538,14 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.username,
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(widget.username,
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                    overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 4),
                 LinearProgressIndicator(
                   value: myProgress,
                   backgroundColor: Colors.white24,
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF69F0AE)),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF69F0AE)),
                 ),
               ],
             ),
@@ -519,25 +553,20 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
           const SizedBox(width: 8),
           const Text('VS',
               style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14)),
+                  color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  widget.opponentUsername,
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(widget.opponentUsername,
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                    overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 4),
                 LinearProgressIndicator(
                   value: oppProgress,
                   backgroundColor: Colors.white24,
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFFFF5252)),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF5252)),
                 ),
               ],
             ),
@@ -552,15 +581,12 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
     return AspectRatio(
       aspectRatio: level.cols / level.rows,
       child: Column(
-        children: List.generate(level.rows, (r) {
-          return Expanded(
-            child: Row(
-              children: List.generate(level.cols, (c) {
-                return Expanded(child: _buildCell(r, c));
-              }),
-            ),
-          );
-        }),
+        children: List.generate(level.rows, (r) => Expanded(
+          child: Row(
+            children: List.generate(level.cols, (c) =>
+                Expanded(child: _buildCell(r, c))),
+          ),
+        )),
       ),
     );
   }
@@ -576,37 +602,23 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
       onTap: isActive ? () => _onCellTap(row, col) : null,
       child: Container(
         margin: const EdgeInsets.all(1.5),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(1),
-        ),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(1)),
         child: isActive
-            ? Stack(
-                children: [
-                  if (clueNum != null)
-                    Positioned(
-                      top: 1,
-                      left: 2,
-                      child: Text(
-                        '$clueNum',
+            ? Stack(children: [
+                if (clueNum != null)
+                  Positioned(
+                    top: 1, left: 2,
+                    child: Text('$clueNum',
                         style: const TextStyle(
-                            fontSize: 7,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black54),
-                      ),
-                    ),
-                  Center(
-                    child: Text(
-                      letter,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(221, 49, 49, 49),
-                      ),
-                    ),
+                            fontSize: 7, fontWeight: FontWeight.bold, color: Colors.black54)),
                   ),
-                ],
-              )
+                Center(
+                  child: Text(letter,
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(221, 49, 49, 49))),
+                ),
+              ])
             : null,
       ),
     );
@@ -624,27 +636,21 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.chevron_left, color: Colors.white),
-            onPressed: _previousClue,
-          ),
+              icon: const Icon(Icons.chevron_left, color: Colors.white),
+              onPressed: _previousClue),
           Expanded(
-            child: Column(
-              children: [
-                if (label.isNotEmpty)
-                  Text(label,
-                      style: const TextStyle(
-                          color: Colors.white70, fontSize: 11)),
-                Text(hint,
-                    textAlign: TextAlign.center,
-                    style:
-                        const TextStyle(color: Colors.white, fontSize: 15)),
-              ],
-            ),
+            child: Column(children: [
+              if (label.isNotEmpty)
+                Text(label,
+                    style: const TextStyle(color: Colors.white70, fontSize: 11)),
+              Text(hint,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 15)),
+            ]),
           ),
           IconButton(
-            icon: const Icon(Icons.chevron_right, color: Colors.white),
-            onPressed: _nextClue,
-          ),
+              icon: const Icon(Icons.chevron_right, color: Colors.white),
+              onPressed: _nextClue),
         ],
       ),
     );
@@ -661,45 +667,37 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
       color: const Color.fromARGB(255, 200, 200, 200),
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       child: Column(
-        children: rows.map((row) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: row.map((key) {
-                final isBackspace = key == '⌫';
-                return GestureDetector(
-                  onTap: () => _onKeyTap(key),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                    width: isBackspace ? 44 : 32,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: _roundEnded ? Colors.grey[300] : Colors.white,
-                      borderRadius: BorderRadius.circular(5),
-                      boxShadow: const [
-                        BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 1,
-                            offset: Offset(0, 1))
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(key,
-                          style: TextStyle(
-                            fontSize: isBackspace ? 18 : 14,
-                            fontWeight: FontWeight.w600,
-                            color: _roundEnded
-                                ? Colors.black38
-                                : Colors.black87,
-                          )),
-                    ),
+        children: rows.map((row) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: row.map((key) {
+              final isBackspace = key == '⌫';
+              return GestureDetector(
+                onTap: () => _onKeyTap(key),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                  width: isBackspace ? 44 : 32,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _roundEnded ? Colors.grey[300] : Colors.white,
+                    borderRadius: BorderRadius.circular(5),
+                    boxShadow: const [BoxShadow(
+                        color: Colors.black26, blurRadius: 1, offset: Offset(0, 1))],
                   ),
-                );
-              }).toList(),
-            ),
-          );
-        }).toList(),
+                  child: Center(
+                    child: Text(key,
+                        style: TextStyle(
+                          fontSize: isBackspace ? 18 : 14,
+                          fontWeight: FontWeight.w600,
+                          color: _roundEnded ? Colors.black38 : Colors.black87,
+                        )),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        )).toList(),
       ),
     );
   }
@@ -717,14 +715,10 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                 backgroundColor: const Color(0xFF1565C0),
                 side: BorderSide.none,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               child: const Text('Clear',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600)),
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
             ),
           ),
           const SizedBox(width: 16),
@@ -734,17 +728,11 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1565C0),
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 elevation: 0,
               ),
-              child: const Text(
-                'Check',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600),
-              ),
+              child: const Text('Check',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
             ),
           ),
         ],
@@ -773,9 +761,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
                 opponentUsername: widget.opponentUsername,
                 currentRound: _currentRound,
               );
-              if (mounted) {
-                Navigator.of(context).popUntil((r) => r.isFirst);
-              }
+              if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
             },
             child: const Text('Quit', style: TextStyle(color: Colors.red)),
           ),
