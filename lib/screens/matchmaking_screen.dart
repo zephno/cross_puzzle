@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/matchmaking_service.dart';
-import 'multiplayer_game_screen.dart';
 import '../login.dart';
+import 'multiplayer_game_screen.dart';
 
 class MatchmakingScreen extends StatefulWidget {
   const MatchmakingScreen({super.key});
@@ -27,8 +27,9 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
   Future<void> _startSearch() async {
     final prefs = await SharedPreferences.getInstance();
     final username = prefs.getString('username') ?? '';
+    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
 
-    if (username.isEmpty) {
+    if (username.isEmpty || !isLoggedIn) {
       setState(() {
         _status = 'You must be logged in to play multiplayer.';
         _searching = false;
@@ -37,11 +38,10 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
       return;
     }
 
-    
-
-    setState(() => _username = username);
-
-
+    setState(() {
+      _username = username;
+      _notLoggedIn = false;
+    });
 
     try {
       final roomId = await MatchmakingService.findMatch(username: username);
@@ -76,7 +76,7 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
     }
   }
 
- Future<void> _cancel() async {
+  Future<void> _cancel() async {
     _cancelled = true;
     if (_username.isNotEmpty) {
       await MatchmakingService.cancelSearch(_username);
@@ -86,7 +86,6 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    
     return Scaffold(
       backgroundColor: const Color(0xFF1565C0),
       appBar: AppBar(
@@ -117,14 +116,20 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
                 ),
                 const SizedBox(height: 32),
               ] else ...[
-                const Icon(Icons.error_outline, color: Colors.white54, size: 80),
+                Icon(
+                  _notLoggedIn ? Icons.lock_outline : Icons.error_outline,
+                  color: Colors.white54,
+                  size: 80,
+                ),
                 const SizedBox(height: 32),
               ],
 
               Text(
                 _status,
                 style: const TextStyle(
-                    color: Colors.white, fontSize: 20, fontWeight: FontWeight.w500),
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500),
                 textAlign: TextAlign.center,
               ),
 
@@ -149,29 +154,62 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30)),
                   ),
-                  child: const Text('Cancel', style: TextStyle(fontSize: 16)),
-                )
-              else
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _searching = true;
-                      _cancelled = false;
-                      _status = 'Searching for opponent...';
-                    });
-                    _startSearch();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF1565C0),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 32, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30)),
-                  ),
-                  child: const Text('Try Again',
+                  child: const Text('Cancel',
                       style: TextStyle(fontSize: 16)),
+                )
+              else ...[
+                if (_notLoggedIn)
+                  ElevatedButton(
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const LoginPage()),
+                      );
+                      // If login succeeded, restart search
+                      if (result == true && mounted) {
+                        setState(() {
+                          _searching = true;
+                          _cancelled = false;
+                          _notLoggedIn = false;
+                          _status = 'Searching for opponent...';
+                        });
+                        _startSearch();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF1565C0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
+                    ),
+                    child: const Text('Go to Login',
+                        style: TextStyle(fontSize: 16)),
+                  )
+                else
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _searching = true;
+                        _cancelled = false;
+                        _status = 'Searching for opponent...';
+                      });
+                      _startSearch();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF1565C0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
+                    ),
+                    child: const Text('Try Again',
+                        style: TextStyle(fontSize: 16)),
                 ),
+              ],
             ],
           ),
         ),
