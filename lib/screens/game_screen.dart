@@ -1,4 +1,4 @@
-  import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
   import 'package:shared_preferences/shared_preferences.dart';
   import '../models/level_data.dart';
 
@@ -226,28 +226,26 @@
     String _entryAt(int row, int col) => _entries['$row,$col'] ?? '';
 
     void _checkAnswer() {
-      if (_selectedClue == null) return;
-      final clue = _selectedClue!;
-      bool correct = true;
-      for (int i = 0; i < clue.length; i++) {
-        final entered = (_entries[_cellKey(clue, i)] ?? '').toUpperCase();
-        if (entered != clue.answer[i]) {
-          correct = false;
-          break;
-        }
-      }
       setState(() {
-        _clueResults[clue.id] = correct;
+        for (final clue in level.clues) {
+          // Only evaluate clues where every cell has been filled in.
+          bool allFilled = true;
+          bool correct = true;
+          for (int i = 0; i < clue.length; i++) {
+            final entered = (_entries[_cellKey(clue, i)] ?? '').toUpperCase();
+            if (entered.isEmpty) {
+              allFilled = false;
+              break;
+            }
+            if (entered != clue.answer[i]) correct = false;
+          }
+          if (allFilled) {
+            _clueResults[clue.id] = correct;
+          }
+          // Clues with unfilled cells keep whatever result they had (or none).
+        }
         _hasChecked = true;
       });
-
-      if (_isPuzzleComplete) {
-        setState(() {
-          for (final c in level.clues) {
-            _clueResults[c.id] = true;
-          }
-        });
-      }
 
       _saveAll();
     }
