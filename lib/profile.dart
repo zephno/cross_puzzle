@@ -2,19 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login.dart';
 import 'create_account.dart';
+import 'data/easy/easylevel1.dart';
+import 'data/easy/easylevel2.dart';
+import 'data/easy/easylevel3.dart';
+import 'data/easy/easylevel4.dart';
+import 'data/medium/mediumlevel1.dart';
+import 'data/medium/mediumlevel2.dart';
+import 'data/medium/mediumlevel3.dart';
+import 'data/medium/mediumlevel4.dart';
+import 'data/hard/hardlevel1.dart';
+import 'data/hard/hardlevel2.dart';
+import 'data/hard/hardlevel3.dart';
+import 'data/hard/hardlevel4.dart';
 
-// All level IDs across every difficulty — add new ones here as you create them
-const _allLevelIds = [
-  'easy_1', 'easy_2', 'easy_3', 'easy_4',
-  'medium_1', 'medium_2', 'medium_3', 'medium_4',
-  'hard_1', 'hard_2', 'hard_3', 'hard_4',
-];
-
-const _levelClueCounts = {
-  'easy_1': 16, 'easy_2': 11, 'easy_3': 14, 'easy_4': 11,
-  'medium_1': 16, 'medium_2': 16, 'medium_3': 15, 'medium_4': 17,
-  'hard_1': 21, 'hard_2': 20, 'hard_3': 22, 'hard_4': 23,
+// Derived directly from the level data so counts are always accurate
+// and never go out of sync if clues are added or removed.
+final _levelClueCounts = {
+  'easy_1':   easyLevel1.clues.length,   // 16
+  'easy_2':   easyLevel2.clues.length,   // 11
+  'easy_3':   easyLevel3.clues.length,   // 13
+  'easy_4':   easyLevel4.clues.length,   // 11
+  'medium_1': mediumLevel1.clues.length, // 15
+  'medium_2': mediumLevel2.clues.length, // 21
+  'medium_3': mediumLevel3.clues.length, // 21
+  'medium_4': mediumLevel4.clues.length, // 21
+  'hard_1':   hardLevel1.clues.length,   // 26
+  'hard_2':   hardLevel2.clues.length,   // 26
+  'hard_3':   hardLevel3.clues.length,   // 26
+  'hard_4':   hardLevel4.clues.length,   // 30
 };
+
+// Derived from the same map — no need to maintain a separate list.
+final _allLevelIds = _levelClueCounts.keys.toList();
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
